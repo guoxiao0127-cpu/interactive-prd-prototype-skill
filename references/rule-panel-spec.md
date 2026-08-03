@@ -26,7 +26,21 @@ type PrototypeRule = {
   purpose: string
   trigger?: string
   preconditions?: string[]
+  businessRules?: string[]
   processRules?: string[]
+  fieldSources?: Array<{
+    field: string
+    usage: 'read' | 'display' | 'derive' | 'submit' | 'update'
+    sourceType: 'user-input' | 'route-context' | 'frontend-derived' |
+      'static-dictionary' | 'backend-api' | 'database' | 'third-party' | 'unknown'
+    sourceSystem: string
+    sourceObject: string
+    sourceField?: string
+    acquisitionTiming?: string
+    transform?: string
+    fallback?: string
+    status?: 'confirmed' | 'pending'
+  }>
   dataRules?: string[]
   validations?: Array<{
     condition: string
@@ -44,6 +58,17 @@ type PrototypeRule = {
 ```
 
 Use arrays for independent, testable rules. Preserve explicit ordering. Do not store the entire panel as one HTML string.
+
+Use `businessRules` for domain decisions and constraints, not click sequences. Use `fieldSources` to describe data lineage for every field the selected operation reads, displays, derives, submits, or updates. One visual field may have multiple source entries when fallback or aggregation exists.
+
+For source lineage:
+
+- Use the exact field label shown in the prototype for `field`.
+- Name the actual system in `sourceSystem`, such as K3, WMS API, route context, current user session, or user input.
+- Name the endpoint, table, document, dictionary, form, or state object in `sourceObject`.
+- Record the source property or column in `sourceField` when known.
+- Explain mapping, formatting, aggregation, defaulting, or unit conversion in `transform`.
+- Set `status: 'pending'` and identify the missing fact when any lineage element is uncertain. Never invent an API, table, or field name.
 
 ## 2. Target binding
 
@@ -75,16 +100,18 @@ Recommended order:
 3. Rule title and last update
 4. Purpose
 5. Trigger and preconditions
-6. Processing rules
-7. Data/field rules
-8. Validations and exact messages
-9. Result and state changes
-10. Permissions
-11. Exceptions
-12. Related functions
-13. Pending decisions
-14. Rule-set version and last-updated date
-15. Close control in the panel header and a lightweight reopen control in the business page header
+6. Business rules
+7. Processing rules
+8. Operation-field data sources
+9. Data/field rules
+10. Validations and exact messages
+11. Result and state changes
+12. Permissions
+13. Exceptions
+14. Related functions
+15. Pending decisions
+16. Rule-set version and last-updated date
+17. Close control in the panel header and a lightweight reopen control in the business page header
 
 Use compact numbered rules and status chips for “阻断”, “提醒”, “允许”, and “标红”. Keep the main panel text selectable and copyable.
 
@@ -131,9 +158,35 @@ export const ruleMeta = {
     '备货单状态必须为“未安排”。',
     '当前用户具备确认备货权限。'
   ],
+  businessRules: [
+    '只有状态为“未安排”的备货单允许确认。',
+    '确认成功后，备货单及关联出库单的备货安排同步更新为“已安排”。'
+  ],
   processRules: [
     '提交当前备货单及其全部关联出库明细。',
     '确认成功后，K3与辅助系统均更新为“已安排”。'
+  ],
+  fieldSources: [
+    {
+      field: '备货单号',
+      usage: 'submit',
+      sourceType: 'route-context',
+      sourceSystem: '当前页面路由',
+      sourceObject: '备货单详情路由参数',
+      sourceField: 'orderId',
+      acquisitionTiming: '进入详情页时',
+      status: 'confirmed'
+    },
+    {
+      field: '确认人',
+      usage: 'submit',
+      sourceType: 'backend-api',
+      sourceSystem: '当前登录用户',
+      sourceObject: '用户会话接口',
+      sourceField: 'userId',
+      acquisitionTiming: '提交确认时',
+      status: 'confirmed'
+    }
   ],
   validations: [
     {
