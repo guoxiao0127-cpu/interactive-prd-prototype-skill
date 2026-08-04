@@ -30,7 +30,7 @@ git clone https://github.com/guoxiao0127-cpu/interactive-prd-prototype-skill.git
 使用 $interactive-prd-prototype，
 为当前静态原型增加点击元素后显示的只读右侧功能规则栏。
 规则栏需要跨路由持续跟随，规则以项目中的 TypeScript/JSON 文件为唯一数据源。
-先从出库单列表页开始。
+先从第一个页面开始。
 ```
 
 Skill 会适配项目当前使用的前端框架、组件库、路由和视觉风格。具体业务规则仍需从项目 PRD、原型和产品负责人提供的说明中提取。
