@@ -75,9 +75,11 @@ For source lineage:
 - Assign stable values such as `page.stock-order`, `button.confirm-picking`, and `field.actual-quantity`.
 - Bind with a reusable attribute or wrapper such as `data-rule-target`.
 - Use event delegation or a reusable component/directive/hook so pages do not duplicate selection logic.
-- Listen in the capture phase when needed so a closed panel can intercept the first click before the target navigates, submits, mutates data, or opens another surface.
-- When the panel is closed, resolve the clicked target ID, prevent and stop its normal action, open the panel, select the matching rule, and highlight the target. Do not require users to reopen the panel before choosing a rule.
-- When the panel is already open, keep the rule selection synchronized and preserve the target's normal non-destructive business action.
+- Keep rule binding observational. Resolve the target ID, update application-level rule state, reopen the rail when needed, and highlight the target without cancelling or replacing the original event.
+- Never call `preventDefault`, `stopPropagation`, or `stopImmediatePropagation`; never return `false`; and never require a second click. The original focus, selection, navigation, dialog, submission, mutation, drag, keyboard, and touch behavior must execute exactly once whether the rail is open or closed.
+- Use capture-phase observation only when required to record the target before navigation unmounts the route or a component stops bubbling. Capture handlers may update rule state synchronously but must leave the event object and propagation untouched.
+- Prefer binding metadata directly to the real interactive element. If a wrapper is unavoidable, it must not change semantics, layout, focus, disabled behavior, hit testing, or pointer handling.
+- Do not place transparent overlays or rule-layer elements above the business page. Decorative highlights must not receive pointer events or create new focus targets.
 - Keep target ID changes deliberate because they are rule-data keys.
 - When a table row shares one rule pattern, bind the rule to the action or row type and pass the row context separately.
 
@@ -117,7 +119,13 @@ Use compact numbered rules and status chips for “阻断”, “提醒”, “�
 
 Closing the rail must translate it completely outside the viewport, release its reserved application-shell width, remove selected-target highlighting, and return the business page to its original width. Reopening must slide the rail in from the right, restore the last selected target, and must not reset filters, selections, pagination, dialogs, or other business-page state.
 
-The explicit reopen control restores the last selected target. Clicking a rule-bound business target while closed instead reopens the panel directly on that target. The first closed-state click is inspection-only and must not also execute the target's original action.
+The explicit reopen control restores the last selected target. Clicking a rule-bound business target while closed reopens the panel directly on that target while the same click continues its original action. Rule review must never create an inspection-only first click or a two-click business flow.
+
+### Non-interference contract
+
+For every bound target, compare behavior before and after rule integration. The following must remain identical: handler count and order, navigation destination, dialog opening, submitted payload, request count, validation timing, focus result, selected value, disabled behavior, keyboard activation, drag/selection behavior, and touch response. The only allowed additions are updating rule state, reopening the rail, and drawing a non-intercepting highlight.
+
+If observing `click` would be too late because navigation removes the page, observe it in capture phase or observe `pointerdown` only for rule-state synchronization. Do not move the business action to the observer and do not synthesize another click.
 
 ## 4. Read-only behavior
 
