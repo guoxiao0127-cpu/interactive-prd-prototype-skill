@@ -1,7 +1,7 @@
 interface:
   display_name: 交互式 PRD 原型
-  short_description: 为静态业务原型增加跨页面持续显示的只读右侧规则栏
-  default_prompt: 使用 $interactive-prd-prototype 为当前原型补充点击后显示、跨路由持续跟随的只读右侧功能规则栏。
+  short_description: 增加含页面变更记录的只读业务规则栏
+  default_prompt: 使用 $interactive-prd-prototype 为当前原型补充不干扰页面操作、跨路由持续跟随的只读右侧规则栏，并在备注区域增加页面变更记录卡片，展示改了什么、原始内容、新内容及新增/删除/修改类型。
   icon_small: assets/icon.svg
   icon_large: assets/icon.svg
 policy:
