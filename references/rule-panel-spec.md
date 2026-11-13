@@ -55,6 +55,24 @@ type PrototypeRule = {
   updatedAt?: string
   updatedBy?: string
 }
+
+type PageChangeRecord = {
+  id: string
+  pageId: string
+  changeType: '新增' | '删除' | '修改'
+  changedItem: string
+  originalContent: string
+  newContent: string
+}
+
+type PrototypeRuleSource = {
+  meta: {
+    version: string
+    lastUpdated: string
+  }
+  rules: PrototypeRule[]
+  pageChanges?: PageChangeRecord[]
+}
 ```
 
 Use arrays for independent, testable rules. Preserve explicit ordering. Do not store the entire panel as one HTML string.
@@ -64,15 +82,24 @@ Use `businessRules` for domain decisions and constraints, not click sequences. U
 For source lineage:
 
 - Use the exact field label shown in the prototype for `field`.
-- Name the actual system in `sourceSystem`, such as K3, WMS API, route context, current user session, or user input.
+- Name the actual source category or project-defined system in `sourceSystem`, such as business API, route context, current user session, or user input. Do not place credentials, internal hostnames, private URLs, customer names, or other secrets in rule data.
 - Name the endpoint, table, document, dictionary, form, or state object in `sourceObject`.
 - Record the source property or column in `sourceField` when known.
 - Explain mapping, formatting, aggregation, defaulting, or unit conversion in `transform`.
 - Set `status: 'pending'` and identify the missing fact when any lineage element is uncertain. Never invent an API, table, or field name.
 
+For page change records:
+
+- Use `pageId` to associate each entry with the current route/page, not with an individual clicked target.
+- Use `changedItem` to name the affected page area, field, button, rule, status, layout, or workflow step precisely.
+- Use only `新增`, `删除`, or `修改` as `changeType` values and render each as a distinct badge.
+- For `新增`, set `originalContent` to explicit display text such as `无（新增）`; for `删除`, set `newContent` to `无（已删除）`; for `修改`, populate both values.
+- Preserve meaningful multiline content. Do not replace a concrete before/after comparison with vague text such as “已优化” or “有调整”.
+- If the prior baseline cannot be verified, set `originalContent` to `待确认` and include the missing baseline in pending decisions. Do not reconstruct an old value from memory.
+
 ## 2. Target binding
 
-- Assign stable values such as `page.stock-order`, `button.confirm-picking`, and `field.actual-quantity`.
+- Assign stable values such as `page.order-detail`, `button.confirm-action`, and `field.actual-quantity`.
 - Bind with a reusable attribute or wrapper such as `data-rule-target`.
 - Use event delegation or a reusable component/directive/hook so pages do not duplicate selection logic.
 - Keep rule binding observational. Resolve the target ID, update application-level rule state, reopen the rail when needed, and highlight the target without cancelling or replacing the original event.
@@ -112,10 +139,13 @@ Recommended order:
 13. Exceptions
 14. Related functions
 15. Pending decisions
-16. Rule-set version and last-updated date
-17. Close control in the panel header and a lightweight reopen control in the business page header
+16. Remarks area with a page-scoped “页面变更记录” card
+17. Rule-set version and last-updated date
+18. Close control in the panel header and a lightweight reopen control in the business page header
 
 Use compact numbered rules and status chips for “阻断”, “提醒”, “允许”, and “标红”. Keep the main panel text selectable and copyable.
+
+Render the page change card only when the current page has records. Each record must show the change-type badge, “改了什么”, “原始内容”, and “新内容”. Use a comparison-friendly stacked or two-column layout that preserves text selection and wrapping. The card belongs to the page remarks area and remains unchanged while users inspect different targets on the same page.
 
 Closing the rail must translate it completely outside the viewport, release its reserved application-shell width, remove selected-target highlighting, and return the business page to its original width. Reopening must slide the rail in from the right, restore the last selected target, and must not reset filters, selections, pagination, dialogs, or other business-page state.
 
@@ -143,7 +173,7 @@ If observing `click` would be too late because navigation removes the page, obse
 ```ts
 export const ruleMeta = {
   version: 'v1.0.0',
-  lastUpdated: '2026-08-02'
+  lastUpdated: '2026-11-13'
 }
 ```
 
@@ -154,34 +184,34 @@ export const ruleMeta = {
 
 ```ts
 {
-  id: 'picking.confirm',
-  pageId: 'picking-order-detail',
-  module: '出库管理',
-  targetId: 'button.confirm-picking',
+  id: 'order.confirm',
+  pageId: 'order-detail',
+  module: '订单管理',
+  targetId: 'button.confirm-order',
   targetType: 'button',
-  targetName: '确认备货',
-  title: '确认备货规则',
-  purpose: '完成备货确认，并同步更新关联单据的安排状态。',
+  targetName: '确认订单',
+  title: '确认订单规则',
+  purpose: '确认当前订单，并同步更新关联记录的处理状态。',
   preconditions: [
-    '备货单状态必须为“未安排”。',
-    '当前用户具备确认备货权限。'
+    '订单状态必须为“待确认”。',
+    '当前用户具备订单确认权限。'
   ],
   businessRules: [
-    '只有状态为“未安排”的备货单允许确认。',
-    '确认成功后，备货单及关联出库单的备货安排同步更新为“已安排”。'
+    '只有状态为“待确认”的订单允许确认。',
+    '确认成功后，订单及关联记录的处理状态同步更新为“已确认”。'
   ],
   processRules: [
-    '提交当前备货单及其全部关联出库明细。',
-    '确认成功后，K3与辅助系统均更新为“已安排”。'
+    '提交当前订单及其关联明细。',
+    '确认成功后，业务系统更新订单及关联记录状态。'
   ],
   fieldSources: [
     {
-      field: '备货单号',
+      field: '订单编号',
       usage: 'submit',
       sourceType: 'route-context',
       sourceSystem: '当前页面路由',
-      sourceObject: '备货单详情路由参数',
-      sourceField: 'orderId',
+      sourceObject: '订单详情路由参数',
+      sourceField: 'recordId',
       acquisitionTiming: '进入详情页时',
       status: 'confirmed'
     },
@@ -191,15 +221,15 @@ export const ruleMeta = {
       sourceType: 'backend-api',
       sourceSystem: '当前登录用户',
       sourceObject: '用户会话接口',
-      sourceField: 'userId',
+      sourceField: 'currentUserId',
       acquisitionTiming: '提交确认时',
       status: 'confirmed'
     }
   ],
   validations: [
     {
-      condition: '备货单状态不是“未安排”',
-      message: '当前备货单状态不允许确认。',
+      condition: '订单状态不是“待确认”',
+      message: '当前订单状态不允许确认。',
       result: 'block'
     }
   ],
@@ -208,4 +238,35 @@ export const ruleMeta = {
     '失败：不改变任何状态，并显示接口返回的失败原因。'
   ]
 }
+```
+
+Page-level change records live beside the rules:
+
+```ts
+export const pageChanges: PageChangeRecord[] = [
+  {
+    id: 'order-detail.add-source-column',
+    pageId: 'order-detail',
+    changeType: '新增',
+    changedItem: '明细表增加“来源编号”列',
+    originalContent: '无（新增）',
+    newContent: '在项目编码后展示关联记录编号'
+  },
+  {
+    id: 'order-detail.confirm-copy',
+    pageId: 'order-detail',
+    changeType: '修改',
+    changedItem: '确认订单按钮提示语',
+    originalContent: '确认提交？',
+    newContent: '确认订单后将同步更新关联记录，是否继续？'
+  },
+  {
+    id: 'order-detail.remove-temp-action',
+    pageId: 'order-detail',
+    changeType: '删除',
+    changedItem: '删除“临时保存”按钮',
+    originalContent: '页面底部展示“临时保存”按钮',
+    newContent: '无（已删除）'
+  }
+]
 ```
